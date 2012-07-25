@@ -1,0 +1,26 @@
+
+type=simple / arrow
+
+void="_"
+	{ return { tag:"none" }; }
+
+return_type=type / void
+
+simple="number" 
+	{ return { tag:"base", name:"number" }; }
+	/ "string" 
+	{ return { tag:"base", name:"string" }; }
+	/ "object"
+	{ return { tag:"base", name:"object" }; }
+	/ "array"
+	{ return { tag:"base", name:"array" }; }
+
+type_ls_rest= "," type
+type_ls="(" head:type tail:type_ls_rest* ")"
+ { return { tag:"array", value:[head].concat(tail)}; }
+
+arrow=args:type_ls "->" ret:return_type
+	{ return { tag:"arrow", left:args, right:ret } }
+ / vd:void "->" ret:return_type
+	{ return { tag:"arrow", left:vd, right:ret }}
+
