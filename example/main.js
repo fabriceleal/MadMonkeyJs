@@ -1,13 +1,25 @@
 #!/usr/local/bin/node
 
-with(require("./madmonkey.js")){
+with(require("../madmonkey.js")){
 
-	var g = new Generator();
-	g.addForm('(Math.sin)', arrowType(arrayType(baseType('num')), baseType('num')) ),
-	g.addForm('(function(){ return Math.random() * 360})', arrowType(noneType(), baseType('num')) ),
-	g.addForm('(180)', baseType('num'))
+	// Create a generator
+	var g = new Generator('_->number');
 
-	var t = g.gen(5);
-	console.log(t.compile());
-	console.log(t.eval());
+	// Add forms to the generator
+	g.addForm('(Math.sin)', 												'(number)->number' ).
+			addForm('(Math.cos)', 											'(number)->number' ).
+			addForm('(Math.sqrt)', 											'(number)->number' ).
+			addForm('(Math.tan)', 											'(number)->number' ).
+			addForm('(function(x){ return Math.random() * x})', 	'(number)->number' ).
+			addForm('(90)', 													'number').
+			//addForm('(180)', 													'number').
+			addForm('(270)', 													'number');
+			//addForm('(360)', 													'number');
+	// ---
+
+
+	var t = g.gen(10);						// Generate a tree with a maximum depth of 10
+	console.log(  t.compile() ); 			// Compile to javascript code
+	console.log(  t.eval() );				// Interpret the internal tree representation
+	console.log(  eval(t.compile()) ); 	// Eval the compilation of the javascript code
 }

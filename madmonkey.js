@@ -1,7 +1,8 @@
 (function(){
+	var types = require('./types.js').parser;
 
 	/**
-	 * The "constant combinator"
+	 * The "constant combinator". Returns a function that always returns the argument "v".
 	 */
 	var k = function(v){
 		return function(){
@@ -9,51 +10,43 @@
 		};
 	};
 
-	// "types"
+	/* "types"
+		* noneType: used for functions that do not return values or for functions that do not have input args
 
-	/**
-	 * Used in functions with no args or with functions that dont return values
-	 */
-	var noneType = (function(){
-		var n = {
+		{
 			tag:"none"
-		};
-		return function(){
-			return n;
-		};
-	})();
+		}
 
-	/**
-	 * A scalar/list type (string, number, object, array)
-	 */
-	var baseType = function(name){	
-		return {
-				tag:"base",
-				name:name
-			};
-	};
 
-	/**
-	 * Used to typify the arg list of a function
-	 */
-	var arrayType = function(){
-		return {
+		* baseType: used for anything other than a function (numbers, strings, objects, arrays)
+
+		{
+			tag:"base",
+			name:?
+		}
+
+		* arrayType: used for holding a function's arguments
+
+		{
 			tag: "array",
-			value: Array.prototype.slice.call(arguments)
-		};
-	};
+			value: [ ..., baseType, arrowType, ...]
+		}
 
-	/**
-	 * Type of a function
-	 */
-	var arrowType = function(left, right){
-		return {
+		* arrowType: used for holding a function's signature
+
+		{
 			tag:"arrow",
-			left:left,
-			right:right
-		};
+			left:noneType, arrayType,
+			right:noneType, baseType, arrowType
+		}
+
 	};
 
+	*/
+
+	/*
+	 * Generates a entry of a form for the generator's internal list
+	 */
 	var generateEntry = function(body, type){
 		return {
 			fun : k(eval(body)), 
@@ -63,72 +56,11 @@
 	};
 
 	/**
-	 * evalTree
+	 * Compiles a tree into callable javascript 
 	 */
-	var evalTree = function(t){
-		if(t.callable !== undefined)
-			return t.callable.fun().apply(
-					null, 
-					t.args.map(function(i){ return evalTree(i); }));
-		//---
-		else if(t.constant !== undefined)
-			return t.constant;
-	};
-	
-	// generateTree
-	var generateTree = function(ls, maximum_depth){
-		var res = {};
-	
-		var elem = undefined;
-		if(maximum_depth === 1){
-			// Pick a terminal at random
-			ls = ls.filter(function(f){ return f.type.tag === 'base' || f.type.left.tag === "none" });
-		}
-
-		if(ls.length === 0)
-			throw new Error("Nothing to choose!!!");
-
-		// Pick at random
-		var idx = Math.floor(Math.random() * ls.length);
-
-		elem = ls[idx]
-
-		if(elem.type.tag === "arrow"){
-			// Function call
-
-			var args = undefined;
-
-			if(elem.type.left.tag === "array"){
-				// continue recursively ...			
-				args = elem.type.left.value.map(
-						function(i){
-							return generateTree(
-									ls, 
-									maximum_depth - 1);
-						});
-				//---
-			}else{
-				args = [];
-			}
-
-			return {
-				callable : elem,
-				args: args
-			}
-
-		}else{
-			// Constant value
-
-			return {
-				constant: elem.fun()			
-			};
-		}	
-
-		return res;
-	}
-
 	var compileTree = function(t){
 		var f = '';
+		// Function call
 		if(t.callable !== undefined){
 			if(t.callable.compilable !== undefined){
 				f = t.callable.compilable;
@@ -137,15 +69,114 @@
 				f = t.callable.fun.toString();
 			}
 			return f + '.apply(null, [' + t.args.map(compileTree).join(', ') + '])';
+		// Constant
 		}else if(t.constant !== undefined){
 			return t.constant.toString();		
 		}
 	};
 
+	/**
+	 * Interpret the internal tree structure
+	 */
+	var evalTree = function(t){
+		// Function call
+		if(t.callable !== undefined){
+			return t.callable.fun().apply(
+					null, 
+					t.args.map(function(i){ return evalTree(i); }));
+		}
+		// Constant
+		else if(t.constant !== undefined){
+			return t.constant;
+		}
+	};
 
-	var Generator = function(){
+	// Helper functions
+	var isFunction = function(f){
+		return (f.type.tag === "arrow");
+	}
 
-		var Tree = function(_tree){
+	// Any base type or any function without arguments is a terminal.
+	var isTerminal = function(f){
+		return (isConstant(f) || isFunctionWithNoArgs(f));
+	};
+
+	var isConstant = function(c){
+		return (c.type.tag === 'base');
+	}
+
+	var isFunctionWithArgs = function(f){
+		return (isFunction(f) && f.type.left.tag === "array");
+	};
+
+	var isFunctionWithNoArgs = function(f){
+		return (isFunction(f) && f.type.left.tag === "none");
+	};
+	
+	/**
+	 * Generates the internal tree
+	 */
+	var generateTree = function(ls, maximum_depth, input, output){
+		var res = {};
+		if(maximum_depth < 1){
+			throw new Error("maximum_depth should be greater than zero!");
+		}
+
+		// TODO Filter ls accordingly to input / output
+		
+		
+		if(ls.length === 0){
+			throw new Error("Nothing to choose!!!");
+		}
+
+		var elem = undefined;
+		if(maximum_depth === 1){
+			// Select terminals
+			ls = ls.filter( isTerminal );
+			if(ls.length === 0){
+				throw new Error("No terminals to choose!!!");
+			}
+		}
+
+		// Pick at random
+		var idx = Math.floor(Math.random() * ls.length);
+		elem = ls[idx]
+
+		// Function call
+		if( isFunction(elem) ){
+			
+			var args = [];
+
+			if( isFunctionWithArgs(elem) ){
+				// Continue Recursively ...			
+				args = elem.type.left.value.map( k(generateTree(ls, maximum_depth - 1, "?", "?")) );
+			}
+
+			return {
+				callable : elem,
+				args: args
+			}
+
+		// Constant value
+		}else if(isConstant(elem)){
+			
+			return {
+				constant: elem.fun()			
+			};
+
+		}else{
+			throw new Error('Invalid member!');
+		}
+
+		return res;
+	}
+
+
+	// TODO Way to reference arguments
+	// TODO Way to validate output of tree and branches inside
+	var Generator = function( syntax ){
+
+		var Tree = function( _tree ){
 			this.compile = function(){
 				return compileTree(_tree);
 			};
@@ -155,23 +186,20 @@
 			return this;
 		}
 
-		var forms = [];
+		var forms = [], _this = this;
 
-		this.addForm = function(stringExpr, typeExpr){
-			forms.push(generateEntry(stringExpr, typeExpr));
+		this.addForm = function( stringExpr, typeExpr ){
+			forms.push(generateEntry(stringExpr, types.parse(typeExpr)));
+
+			return _this;
 		};
 
-		this.gen = function(max_depth){
-			return new Tree(generateTree(forms, max_depth));
+		this.gen = function( max_depth ){
+			return new Tree(generateTree(forms, max_depth, "?", "?"));
 		};
 
 		return this;
 	};
 
-	exports.noneType = noneType;
-	exports.baseType = baseType;
-	exports.arrayType = arrayType;
-	exports.arrowType = arrowType;
-//	exports. = ;
 	exports.Generator = Generator;
 })();
