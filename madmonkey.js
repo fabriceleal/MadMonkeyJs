@@ -54,31 +54,54 @@
 			type: type
 		};
 	};
+	
+	/*
+	 * Generates a entry for a argument, replaced at execution time
+	 */
+	var generateEntrySymbol = function(symbol, type){
+		return {
+			symbol : symbol, 
+			compilable: symbol,
+			type: type
+		};
+	};
 
 	/**
 	 * Compiles a tree into callable javascript 
 	 */
-	var compileTree = function(t){
-		var f = '';
-		// Function call
-		if(t.callable !== undefined){
-			if(t.callable.compilable !== undefined){
-				f = t.callable.compilable;
-			}
-			else{
-				f = t.callable.fun.toString();
-			}
-			return f + '.apply(null, [' + t.args.map(compileTree).join(', ') + '])';
-		// Constant
-		}else if(t.constant !== undefined){
-			return t.constant.toString();		
-		}
+	var compileTree = function(t, argList){
+		var f = ''; 
+		f += '(function(' ;
+
+		if(argList) f += argList.map(function(a){ return a.name; }).join(', ');
+
+		f += '){';
+		f += 'return ('; 
+		f += (function _iCompileTree(t){
+				// Function call
+				if(t.callable !== undefined){
+					if(t.callable.compilable !== undefined){
+						f = t.callable.compilable;
+					}
+					else{
+						f = t.callable.fun.toString();
+					}
+					return f + '.apply(null, [' + t.args.map(_iCompileTree).join(', ') + '])';
+				// Constant
+				}else if(t.constant !== undefined){
+					return t.constant.toString();		
+				}else if(t.symbol !== undefined){
+					return t.symbol.toString();		
+				}
+		})(t);
+		f += '); })';
+		return f;
 	};
 
 	/**
 	 * Interpret the internal tree structure
 	 */
-	var evalTree = function(t){
+	var evalTree = function(t, env){
 		// Function call
 		if(t.callable !== undefined){
 			return t.callable.fun().apply(
@@ -89,17 +112,25 @@
 		else if(t.constant !== undefined){
 			return t.constant;
 		}
+		// Symbol
+		else if(t.symbol !== undefined){
+			return env[t.symbol];
+		}
 	};
 
 	// Helper functions
 	var isFunction = function(f){
 		return (f.type.tag === "arrow");
 	}
-
+	
 	// Any base type or any function without arguments is a terminal.
 	var isTerminal = function(f){
 		return (isConstant(f) || isFunctionWithNoArgs(f));
 	};
+
+	var isSymbol = function(s){
+		return s.symbol !== undefined;
+	}
 
 	var isConstant = function(c){
 		return (c.type.tag === 'base');
@@ -163,11 +194,15 @@
 
 		// Constant value
 		}else if(isConstant(elem)){
-			
-			return {
-				constant: elem.fun()			
-			};
-
+			if(isSymbol(elem)){
+				return {
+					symbol : elem.symbol
+				};
+			}else{
+				return {
+					constant: elem.fun()			
+				};
+			}
 		}else{
 			throw new Error('Invalid member!');
 		}
@@ -190,22 +225,26 @@
 
 	// TODO Way to reference arguments
 	// TODO Way to validate output of tree and branches inside
-	var Generator = function( syntax ){
+	var Generator = function( syntax , args ){
+		if(args === undefined){ 
+			args = []; 
+		}
+		//console.log(args);
 
 		var Tree = function( _tree ){
 			this.raw = _tree;
 
-			this.compile = function(){
-				return compileTree(_tree);
+			this.compile = function( ){
+				return compileTree(_tree, args);
 			};
-			this.eval = function(){
-				return evalTree(_tree);
+			this.eval = function( binds ){
+				return evalTree(_tree, binds );
 			};
 
 			// Counts all leafs
 			var _size = 
 					(function __codeSize(node){
-						if(node.constant !== undefined){
+						if(node.constant !== undefined || node.symbol !== undefined){
 							return 1;
 						}
 						else if (node.args !== undefined){
@@ -215,7 +254,8 @@
 					})(_tree);
 			//---
 			if(_size < 1){
-				throw new Error('Programs of size zero are not allowed!!!');
+				console.log(_tree);
+				throw new Error('Codesize says that programs of size zero are not allowed!!!');
 			}
 
 			this.codeSize = function(){
@@ -226,7 +266,7 @@
 				var prob = 1 / _size;
 
 				var max_depth = (function _maxDepth(node){
-					if(node.constant !== undefined){
+					if(node.constant !== undefined || node.symbol !== undefined){
 						return 1;
 					} else if (node.args !== undefined){
 						return 1 + node.args.reduce(function(v, i){ return Math.max(v, _maxDepth(i));	}, -1);
@@ -248,7 +288,7 @@
 								}
 								return node; // Just to be sure ...
 							}
-							return null;
+							throw new Error('I wanted to pick a node, but I didnt like none.');
 						})(tree, 1) 
 			}
 
@@ -260,7 +300,11 @@
 				//console.log('');
 				//console.log('OLD:' + JSON.stringify(nodeTarget, null, 3));
 				//console.log('NEW:' + JSON.stringify(src.raw, null, 3));
-
+				if(src.raw.constant === undefined && src.raw.callable === undefined && src.raw.args === undefined && src.raw.symbol === undefined){
+					//console.log(JSON.stringify(src, null, 3));
+					throw new Error('Dont try to inject nothing!');
+				}
+				nodeTarget.symbol 	= src.raw.symbol;
 				nodeTarget.constant 	= src.raw.constant;
 				nodeTarget.callable 	= src.raw.callable;
 				nodeTarget.args 		= src.raw.args;
@@ -269,12 +313,22 @@
 			}
 
 			this.extract = function(){
-				return new Tree( clone( pickNode(_tree) ));
+				var node = clone(pickNode(_tree));
+				if(node.constant === undefined && node.callable === undefined && node.args === undefined && node.symbol === undefined){
+					throw new Error("extract'ed empty node from tree!");
+				}
+				return new Tree( node );
 			};
 			return this;
 		}
 
-		var forms = [], _this = this;
+		var forms = [], _this = this/*, _args = []*/;
+		//console.log(args);
+		// Add args to forms
+		args.forEach(function(a){
+			//console.log('hey!');
+			forms.push(generateEntrySymbol(a.name , types.parse(a.type)));
+		});
 
 		this.addForm = function( stringExpr, typeExpr ){
 			forms.push(generateEntry(stringExpr, types.parse(typeExpr)));
@@ -283,6 +337,7 @@
 		};
 
 		this.gen = function( max_depth ){
+			//console.log(forms);
 			return new Tree(generateTree(forms, max_depth, "?", "?"));
 		};
 
