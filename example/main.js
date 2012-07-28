@@ -1,6 +1,6 @@
 #!/usr/local/bin/node
 
-with(require("../madmonkey.js")){
+with(require("madmonkey")){
 
 	// Create a generator
 	var g = new Generator('_->number');
@@ -38,6 +38,5 @@ with(require("../madmonkey.js")){
 //	console.log(  eval(t.compile()) ); 	// Eval the compilation of the javascript code
 //	console.log( 'size = ' + t.codeSize() );
 //	console.log( t.extract().compile() );
-
 
 }

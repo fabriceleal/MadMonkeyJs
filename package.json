@@ -1,0 +1,18 @@
+{
+  "author": "Fabrice Leal <fabrice.leal.ch@gmail.com> (fabriceleal.github.com)",
+  "name": "madmonkey",
+  "description": "A lib for generating random javascript programs.",
+  "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/fabriceleal/MadMonkeyJs.git"
+  },
+  "main": "madmonkey.js",
+  "dependencies": {
+	},
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  }
+}
