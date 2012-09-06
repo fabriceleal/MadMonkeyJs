@@ -7,6 +7,7 @@ A node.js module for generating random javascript programs
 * Generates maximum-depth-constrained trees.
 * Generates a walkable/manipulable/evalable tree.
 * Compiles to javascript function.
+* Several methods for extracting, injecting and crossing trees (suitable for genetic programming algorithms).
 
 ## TODO
 
@@ -20,7 +21,7 @@ A node.js module for generating random javascript programs
 npm install madmonkey
 ```
 
-## Using
+## Example
 
 Check example/main.js for a working example!
 
