@@ -7,7 +7,8 @@ A node.js module for generating random javascript programs
 * Generates maximum-depth-constrained trees.
 * Generates a walkable/manipulable/evalable tree.
 * Compiles to javascript function.
-* Several methods for extracting, injecting and crossing trees (suitable for genetic programming algorithms).
+* Several methods for extracting, injecting and 
+crossing trees (suitable for genetic programming algorithms).
 
 ## TODO
 
@@ -31,7 +32,8 @@ Usage:
 	var madmonkey = require("madmonkey");
 
 	// Create a generator with the "signature" of the program
-	// The signature is the type of the parameters (or lack of them...) and the type of the return value (or lack of it ...)
+	// The signature is the type of the parameters (or lack of them...) 
+	// and the type of the return value (or lack of it ...)
 
 	// Our program will take no parameters and return a number
 	var g = new Generator('_->number');
@@ -49,7 +51,8 @@ Usage:
 
 	// Generate a "tree", with a maximum depth of 10.
 	// A tree is the main result of the generator, and consists of a nested chain of forms.
-	// This tree can be compiled into a javascript function or immediately evaled in an interpreted way.
+	// This tree can be compiled into a javascript function or 
+	// immediately evaled in an interpreted way.
 	var t = g.gen(10);
 	
 	// Compile to javascript source
