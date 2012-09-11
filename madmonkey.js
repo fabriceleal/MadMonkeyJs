@@ -304,10 +304,10 @@
 					//console.log(JSON.stringify(src, null, 3));
 					throw new Error('Dont try to inject nothing!');
 				}
-				nodeTarget.symbol 	= src.raw.symbol;
-				nodeTarget.constant 	= src.raw.constant;
-				nodeTarget.callable 	= src.raw.callable;
-				nodeTarget.args 		= src.raw.args;
+				nodeTarget.symbol = src.raw.symbol;
+				nodeTarget.constant = src.raw.constant;
+				nodeTarget.callable = src.raw.callable;
+				nodeTarget.args = src.raw.args;
 				
 				return new Tree(indRaw);
 			}
@@ -336,8 +336,10 @@
 			return _this;
 		};
 
+		/*
+			Generate a new tree with a prefined maximum depth
+		*/
 		this.gen = function( max_depth ){
-			//console.log(forms);
 			return new Tree(generateTree(forms, max_depth, "?", "?"));
 		};
 

@@ -29,6 +29,7 @@ Check example/main.js for a working example!
 Usage: 
 
 ```javascript
+
 	var madmonkey = require("madmonkey");
 
 	// Create a generator with the "signature" of the program
@@ -41,10 +42,16 @@ Usage:
 	// Add "forms" to the generator
 	// A form is a valid element inside the program
 	// A form can be:
-	//		* A constant (ex: '(80)')
+	//		* A constant (ex: '(80)' or even '(Math.random())')
 	//		* A built-in function (ex: '(Math.cos)')
 	//		* A custom function (ex: '(function(x){ return x * 2;})')
 	// All forms should be provided with their signature
+	
+	// (gp terminology here)
+	// All the forms, plus any parameter of the program,  are the "primitive set"
+	// The set of all constant-forms, plus any parameter of the program,
+	// are the "terminal set"; all functions (built-in/custom) are the "function set"
+	
 	g.addForm('(80)', 'number');
 	g.addForm('(Math.cos)', '(number)->number');
 	g.addForm('(function(x){ return x * 2; })', '(number)->number');
