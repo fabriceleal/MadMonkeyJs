@@ -49,34 +49,34 @@
 	 */
 	var generateEntry = function(body, type){
 		return {
-			fun : k(eval(body)), 
+			fun : k(eval(body)),
 			compilable: body,
 			type: type
 		};
 	};
-	
+
 	/*
 	 * Generates a entry for a argument, replaced at execution time
 	 */
 	var generateEntrySymbol = function(symbol, type){
 		return {
-			symbol : symbol, 
+			symbol : symbol,
 			compilable: symbol,
 			type: type
 		};
 	};
 
 	/**
-	 * Compiles a tree into callable javascript 
+	 * Compiles a tree into callable javascript
 	 */
 	var compileTree = function(t, argList){
-		var f = ''; 
+		var f = '';
 		f += '(function(' ;
 
 		if(argList) f += argList.map(function(a){ return a.name; }).join(', ');
 
 		f += '){';
-		f += 'return ('; 
+		f += 'return (';
 		f += (function _iCompileTree(t){
 				// Function call
 				if(t.callable !== undefined){
@@ -89,9 +89,9 @@
 					return f + '.apply(null, [' + t.args.map(_iCompileTree).join(', ') + '])';
 				// Constant
 				}else if(t.constant !== undefined){
-					return t.constant.toString();		
+					return t.constant.toString();
 				}else if(t.symbol !== undefined){
-					return t.symbol.toString();		
+					return t.symbol.toString();
 				}
 		})(t);
 		f += '); })';
@@ -105,7 +105,7 @@
 		// Function call
 		if(t.callable !== undefined){
 			return t.callable.fun().apply(
-					null, 
+					null,
 					t.args.map(function(i){ return evalTree(i); }));
 		}
 		// Constant
@@ -122,7 +122,7 @@
 	var isFunction = function(f){
 		return (f.type.tag === "arrow");
 	}
-	
+
 	// Any base type or any function without arguments is a terminal.
 	var isTerminal = function(f){
 		return (isConstant(f) || isFunctionWithNoArgs(f));
@@ -147,7 +147,7 @@
 	var randomInRange = function(start, end){
 		return Math.floor(Math.random() * (end - start) + start);
 	};
-	
+
 	/**
 	 * Generates the internal tree
 	 */
@@ -158,8 +158,8 @@
 		}
 
 		// TODO Filter ls accordingly to input / output
-		
-		
+
+
 		if(ls.length === 0){
 			throw new Error("Nothing to choose!!!");
 		}
@@ -179,11 +179,11 @@
 
 		// Function call
 		if( isFunction(elem) ){
-			
+
 			var args = [];
 
 			if( isFunctionWithArgs(elem) ){
-				// Continue Recursively ...			
+				// Continue Recursively ...
 				args = elem.type.left.value.map( k(generateTree(ls, maximum_depth - 1, "?", "?")) );
 			}
 
@@ -200,7 +200,7 @@
 				};
 			}else{
 				return {
-					constant: elem.fun()			
+					constant: elem.fun()
 				};
 			}
 		}else{
@@ -226,14 +226,16 @@
 	// TODO Way to reference arguments
 	// TODO Way to validate output of tree and branches inside
 	var Generator = function( syntax , args ){
-		if(args === undefined){ 
-			args = []; 
+		if(args === undefined){
+			args = [];
 		}
 		//console.log(args);
 
 		var Tree = function( _tree ){
 			this.raw = _tree;
-
+			this._flattened = null;
+			var _this = this;
+			
 			this.compile = function( ){
 				return compileTree(_tree, args);
 			};
@@ -242,7 +244,7 @@
 			};
 
 			// Counts all leafs
-			var _size = 
+			var _size =
 					(function __codeSize(node){
 						if(node.constant !== undefined || node.symbol !== undefined){
 							return 1;
@@ -254,7 +256,7 @@
 					})(_tree);
 			//---
 			if(_size < 1){
-				console.log(_tree);
+				//console.log(_tree);
 				throw new Error('Codesize says that programs of size zero are not allowed!!!');
 			}
 
@@ -263,7 +265,39 @@
 			}
 
 			var pickNode = function(tree){
-				var prob = 1 / _size;
+				// Flatten the tree of nodes. This will occupy more space, but for greater good
+				if(! _this._flattened){
+					_this._flattened = [];
+					try{
+						var tmp = [];
+						tmp.push(tree);
+
+						while(tmp.length > 0){
+							var current = tmp.pop();
+							if(current == null){
+								throw new Error('Empty node while trying to create private list of nodes!');
+							}
+
+							_this._flattened.push(current);
+
+							if(current.args !== undefined){
+								tmp = tmp.concat(current.args);
+							}
+						}
+
+					}catch(e){
+						_this._flattened = null;
+						throw new Error('Error trying to create private list of nodes. ' + e.toString());
+					}
+				}
+				if(_this._flattened.length > 0){
+					var idx = randomInRange(0, _this._flattened.length);
+					return _this._flattened[idx];
+				}
+
+				throw new Error('I wanted to pick a node, but I didnt like none.');
+
+				/*var prob = 1 / _size;
 
 				var max_depth = (function _maxDepth(node){
 					if(node.constant !== undefined || node.symbol !== undefined){
@@ -283,13 +317,13 @@
 								return node;
 							} else if(node.args !== undefined) {
 								for(var k in node.args){
-									var tmp = _pick(node.args[k], depth + 1); 
+									var tmp = _pick(node.args[k], depth + 1);
 									if(tmp !== null) return tmp;
 								}
 								return node; // Just to be sure ...
 							}
 							throw new Error('I wanted to pick a node, but I didnt like none.');
-						})(tree, 1) 
+						})(tree, 1) */
 			}
 
 			this.inject = function(src){
@@ -308,7 +342,7 @@
 				nodeTarget.constant = src.raw.constant;
 				nodeTarget.callable = src.raw.callable;
 				nodeTarget.args = src.raw.args;
-				
+
 				return new Tree(indRaw);
 			}
 
