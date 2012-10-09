@@ -19,6 +19,7 @@
 
 
 		* baseType: used for anything other than a function (numbers, strings, objects, arrays)
+		* tagName: a scalar type with special "semantics"
 
 		{
 			tag:"base",
@@ -133,7 +134,7 @@
 	}
 
 	var isConstant = function(c){
-		return (c.type.tag === 'base');
+		return (c.type.tag === 'base' || c.type.tag === 'tag');
 	}
 
 	var isFunctionWithArgs = function(f){
@@ -229,7 +230,6 @@
 		if(args === undefined){
 			args = [];
 		}
-		//console.log(args);
 
 		var Tree = function( _tree ){
 			this.raw = _tree;
@@ -255,8 +255,8 @@
 						return 0;
 					})(_tree);
 			//---
+
 			if(_size < 1){
-				//console.log(_tree);
 				throw new Error('Codesize says that programs of size zero are not allowed!!!');
 			}
 
@@ -331,11 +331,7 @@
 				var indRaw = clone(_tree);
 				var nodeTarget = pickNode(indRaw);
 
-				//console.log('');
-				//console.log('OLD:' + JSON.stringify(nodeTarget, null, 3));
-				//console.log('NEW:' + JSON.stringify(src.raw, null, 3));
 				if(src.raw.constant === undefined && src.raw.callable === undefined && src.raw.args === undefined && src.raw.symbol === undefined){
-					//console.log(JSON.stringify(src, null, 3));
 					throw new Error('Dont try to inject nothing!');
 				}
 				nodeTarget.symbol = src.raw.symbol;
@@ -357,10 +353,9 @@
 		}
 
 		var forms = [], _this = this/*, _args = []*/;
-		//console.log(args);
+
 		// Add args to forms
 		args.forEach(function(a){
-			//console.log('hey!');
 			forms.push(generateEntrySymbol(a.name , types.parse(a.type)));
 		});
 
