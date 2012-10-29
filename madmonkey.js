@@ -129,6 +129,10 @@
 		return (isConstant(f) || isFunctionWithNoArgs(f));
 	};
 
+	var isVoid = function(t){
+		return t.tag === 'none';
+	}
+
 	var isSymbol = function(s){
 		return s.symbol !== undefined;
 	}
@@ -137,16 +141,67 @@
 		return (c.type.tag === 'base' || c.type.tag === 'tag');
 	}
 
+	var isArgList = function(c){
+		return c.left.tag === "array";
+	}
+
 	var isFunctionWithArgs = function(f){
-		return (isFunction(f) && f.type.left.tag === "array");
+		return (isFunction(f) && isArgList(f.left));
 	};
 
 	var isFunctionWithNoArgs = function(f){
-		return (isFunction(f) && f.type.left.tag === "none");
+		return (isFunction(f) && isVoid(f.type.left));
 	};
 
 	var randomInRange = function(start, end){
 		return Math.floor(Math.random() * (end - start) + start);
+	};
+
+	var matchWithType = function(type){
+		if(type == null){
+			throw new Error('No type passed to matchWithType!!!');
+		}
+
+		// Match void
+		if( isVoid(type) ){
+			return isVoid;
+		}
+		
+		// Match scalar/tagged
+		if ( isConstant(type) ){
+			return function(ntype){
+				return type.tag === ntype.tag && type.name === ntype.name;
+			}
+		}
+		
+		// Match list of arguments ...
+		if( isArgList(type) ){
+			var matchers = type.value.map(matchWithType);
+			
+			return function(ntype) {
+				return (isArgList(ntype) && matchers.reduce(function(t, fn, idx){ 
+					if(t){
+						if(fn[ntype.value[idx]]){						
+							return true;
+						}
+					}
+					return false;
+				}, true));
+			};
+		}
+
+		// Match function
+		if( isFunction(type) ){
+			// Check also arguments and return types !!!
+			var matchArg = matchWithType(type.left);
+			var matchRet = matchWithType(type.right);
+			return function(ntype){
+				return (isFunction(ntype) && matchArg(ntype.left) && matchArg(ntype.right) );
+			}
+		}
+		
+		// ?
+		throw new Error('No matcher for type ' + JSON.stringify(type));
 	};
 
 	/**
@@ -158,8 +213,14 @@
 			throw new Error("maximum_depth should be greater than zero!");
 		}
 
-		// TODO Filter ls accordingly to input / output
-
+		// Filter ls accordingly to input / output
+		if(input !== "?"){
+			ls = ls.filter( matchWithType(input) );
+		}
+		
+		if(output !== "?"){
+			ls = ls.filter( matchWithType(output) );
+		}
 
 		if(ls.length === 0){
 			throw new Error("Nothing to choose!!!");
@@ -185,7 +246,7 @@
 
 			if( isFunctionWithArgs(elem) ){
 				// Continue Recursively ...
-				args = elem.type.left.value.map( k(generateTree(ls, maximum_depth - 1, "?", "?")) );
+				args = elem.type.left.value.map( k(generateTree(ls, maximum_depth - 1, "?" , "?")) );
 			}
 
 			return {
@@ -235,7 +296,7 @@
 			this.raw = _tree;
 			this._flattened = null;
 			var _this = this;
-			
+
 			this.compile = function( ){
 				return compileTree(_tree, args);
 			};
